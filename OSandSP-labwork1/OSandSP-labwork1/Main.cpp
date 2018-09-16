@@ -83,6 +83,7 @@ int windowX, windowY;
 //HPEN rectanglePen, backgroundPen;
 HBRUSH rectangleBrush, backgroundBrush;
 COLORREF backgroundColor = RGB(231, 231, 231), rectangleColor = RGB(1, 90, 91);
+int wheelScrolling;
 
 void FindRectangleSize(int winX, int winY, int &x1, int &y1, int &x2, int &y2)
 {
@@ -189,6 +190,47 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				default:
 					return DefWindowProc(hWnd, message, wParam, lParam);
 			}
+		}
+		break;
+		case WM_MOUSEWHEEL: // ќбработка прокрутки колесика
+		{
+			wheelScrolling = GET_WHEEL_DELTA_WPARAM(wParam); // »нтервал, на который прокрутилось колесико
+			// ѕоложительное значение указывает, что колесико вращалось вперед, в сторону от пользовател€; отрицательное значение указывает, что колесико вращалось назад, к пользователю.
+			if (GetAsyncKeyState(VK_SHIFT)) // Ќажата ли клавиша SHIFT
+			{
+				if ((wheelScrolling > 0) && (rectX1 > 0))
+				{ // ѕрокрутка влево
+					rectX1 -= 3; rectX2 -= 3;
+					SetRect(&figureRt, rectX1, rectY1, rectX2, rectY2);
+					FillRect(hdc, &figureRt, rectangleBrush);
+					InvalidateRect(hWnd, NULL, TRUE);
+				}
+				if ((wheelScrolling < 0) && (rectX2 < windowX))
+				{ // ѕрокрутка вправо
+					rectX1 += 3; rectX2 += 3;
+					SetRect(&figureRt, rectX1, rectY1, rectX2, rectY2);
+					FillRect(hdc, &figureRt, rectangleBrush);
+					InvalidateRect(hWnd, NULL, TRUE);
+				}
+			}
+			else
+			{
+				if ((wheelScrolling > 0) && (rectY1 > 0))
+				{ // ѕрокрутка вверх
+					rectY1 -= 3; rectY2 -= 3;
+					SetRect(&figureRt, rectX1, rectY1, rectX2, rectY2);
+					FillRect(hdc, &figureRt, rectangleBrush);
+					InvalidateRect(hWnd, NULL, TRUE);
+				}
+				if ((wheelScrolling < 0) && (rectY2 < windowY))
+				{ // ѕрокрутка вниз
+					rectY1 += 3; rectY2 += 3;
+					SetRect(&figureRt, rectX1, rectY1, rectX2, rectY2);
+					FillRect(hdc, &figureRt, rectangleBrush);
+					InvalidateRect(hWnd, NULL, TRUE);
+				}
+			}
+			
 		}
 		break;
 		case WM_DESTROY:
