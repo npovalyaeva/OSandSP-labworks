@@ -81,7 +81,7 @@ bool firstWinSizeFlag = true, movingFlag = false;
 int rectX1, rectY1, rectX2, rectY2;
 int rectangleWidth, rectangleHeight;
 int windowX, windowY;
-int mouseCurrentX, mouseCurrentY;
+int mouseCurrentX, mouseCurrentY, mouseInitialX, mouseInitialY;
 //HPEN rectanglePen, backgroundPen;
 HBRUSH rectangleBrush, backgroundBrush;
 COLORREF backgroundColor = RGB(231, 231, 231), rectangleColor = RGB(1, 90, 91);
@@ -239,9 +239,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		break;
 		case WM_LBUTTONDOWN:
 		{
-			mouseCurrentX = LOWORD(lParam); // Текущие координаты курсора
-			mouseCurrentY = HIWORD(lParam);
-			if ((mouseCurrentX >= rectX1) && (mouseCurrentX <= rectX2) && (mouseCurrentY >= rectY1) && (mouseCurrentY <= rectY2)) // Принадлежит ли курсор спрайту
+			mouseInitialX = LOWORD(lParam); // Начальные координаты курсора
+			mouseInitialY = HIWORD(lParam);
+			if ((mouseInitialX >= rectX1) && (mouseInitialX <= rectX2) && (mouseInitialY >= rectY1) && (mouseInitialY <= rectY2)) // Принадлежит ли курсор спрайту
 			{
 				movingFlag = true; // Установить флаг движения спрайта в TRUE
 			}
@@ -254,14 +254,17 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				mouseCurrentX = LOWORD(lParam); // Текущие координаты курсора
 				mouseCurrentY = HIWORD(lParam);
 
-				rectX1 = mouseCurrentX - rectangleWidth / 2; // Координаты спрайта после перемещения курсора
-				rectY1 = mouseCurrentY - rectangleHeight / 2;
+				rectX1 += (mouseCurrentX - mouseInitialX); // Координаты спрайта после перемещения курсора
+				rectY1 += (mouseCurrentY - mouseInitialY);
 				rectX2 = rectX1 + rectangleWidth;
 				rectY2 = rectY1 + rectangleHeight;
 
 				SetRect(&figureRt, rectX1, rectY1, rectX2, rectY2);
 				FillRect(hdc, &figureRt, rectangleBrush);
 				InvalidateRect(hWnd, NULL, TRUE);
+
+				mouseInitialX = mouseCurrentX;
+				mouseInitialY = mouseCurrentY;
 			}
 		}
 		break;
