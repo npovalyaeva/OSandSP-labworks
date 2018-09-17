@@ -77,9 +77,11 @@ int APIENTRY _tWinMain(HINSTANCE hInstance, // Описатель (дескриптор) загруженно
 HDC hdc; // Дескриптор контекста устройства
 PAINTSTRUCT ps;
 RECT figureRt, backRt;
-bool firstWinSizeFlag = true;
+bool firstWinSizeFlag = true, movingFlag = false;
 int rectX1, rectY1, rectX2, rectY2;
+int rectangleWidth, rectangleHeight;
 int windowX, windowY;
+int mouseCurrentX, mouseCurrentY;
 //HPEN rectanglePen, backgroundPen;
 HBRUSH rectangleBrush, backgroundBrush;
 COLORREF backgroundColor = RGB(231, 231, 231), rectangleColor = RGB(1, 90, 91);
@@ -113,6 +115,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			{
 				FindRectangleSize(windowX, windowY, rectX1, rectY1, rectX2, rectY2);
 				firstWinSizeFlag = false;
+				rectangleWidth = rectX2 - rectX1; // Ширина созданного спрайта
+				rectangleHeight = rectY2 - rectY1; // Высота созданного спрайта
 			}
 		}
 		break;
@@ -231,6 +235,39 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				}
 			}
 			
+		}
+		break;
+		case WM_LBUTTONDOWN:
+		{
+			mouseCurrentX = LOWORD(lParam); // Текущие координаты курсора
+			mouseCurrentY = HIWORD(lParam);
+			if ((mouseCurrentX >= rectX1) && (mouseCurrentX <= rectX2) && (mouseCurrentY >= rectY1) && (mouseCurrentY <= rectY2)) // Принадлежит ли курсор спрайту
+			{
+				movingFlag = true; // Установить флаг движения спрайта в TRUE
+			}
+		}
+		break;
+		case WM_MOUSEMOVE:
+		{
+			if (movingFlag)
+			{
+				mouseCurrentX = LOWORD(lParam); // Текущие координаты курсора
+				mouseCurrentY = HIWORD(lParam);
+
+				rectX1 = mouseCurrentX - rectangleWidth / 2; // Координаты спрайта после перемещения курсора
+				rectY1 = mouseCurrentY - rectangleHeight / 2;
+				rectX2 = rectX1 + rectangleWidth;
+				rectY2 = rectY1 + rectangleHeight;
+
+				SetRect(&figureRt, rectX1, rectY1, rectX2, rectY2);
+				FillRect(hdc, &figureRt, rectangleBrush);
+				InvalidateRect(hWnd, NULL, TRUE);
+			}
+		}
+		break;
+		case WM_LBUTTONUP:
+		{
+			movingFlag = false; // Установить флаг движения спрайта в FALSE
 		}
 		break;
 		case WM_DESTROY:
