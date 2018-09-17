@@ -78,6 +78,7 @@ HDC hdc; // Дескриптор контекста устройства
 PAINTSTRUCT ps;
 RECT figureRt, backRt;
 bool firstWinSizeFlag = true, movingFlag = false;
+int timeCounter;
 int rectX1, rectY1, rectX2, rectY2;
 int rectangleWidth, rectangleHeight;
 int windowX, windowY;
@@ -140,9 +141,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		break;
 		case WM_KEYDOWN:
 		{
-
-			//https://docs.microsoft.com/en-us/windows/desktop/inputdev/virtual-key-codes
-
 			switch (wParam)
 			{
 				case VK_RIGHT:
@@ -155,9 +153,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 						InvalidateRect(hWnd, NULL, TRUE);
 						//UpdateWindow(hWnd);
 					}
+					if (rectX2 >= windowX)
+					{
+						SetTimer(hWnd, 1, 10, NULL);
+						timeCounter = 7;
+					}
 				}
 				break;
 				case VK_LEFT:
+				{
 					if (rectX1 > 0)
 					{
 						rectX1 -= 3; rectX2 -= 3;
@@ -166,7 +170,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 						InvalidateRect(hWnd, NULL, TRUE);
 						//UpdateWindow(hWnd);
 					}
-					break;
+					if (rectX1 <= 0)
+					{
+						SetTimer(hWnd, 2, 10, NULL);
+						timeCounter = 7;
+					}
+				}
+				break;
 				case VK_UP:
 				{
 					if (rectY1 > 0)
@@ -177,6 +187,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 						InvalidateRect(hWnd, NULL, TRUE);
 						//UpdateWindow(hWnd);
 					}
+					if (rectY1 <= 0)
+					{
+						SetTimer(hWnd, 3, 10, NULL);
+						timeCounter = 7;
+					}
+
 				}
 				break;
 				case VK_DOWN:
@@ -188,6 +204,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 						FillRect(hdc, &figureRt, rectangleBrush);
 						InvalidateRect(hWnd, NULL, TRUE);
 						//UpdateWindow(hWnd);
+					}
+					if (rectY2 >= windowY)
+					{
+						SetTimer(hWnd, 4, 10, NULL);
+						timeCounter = 7;
 					}
 				}
 				break;
@@ -266,6 +287,74 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				mouseInitialX = mouseCurrentX;
 				mouseInitialY = mouseCurrentY;
 			}
+		}
+		break;
+		case WM_TIMER:
+		{
+			switch (wParam)
+			{
+				case 1: // Отскок влево
+				{
+					if (timeCounter != 0)
+					{
+						rectX1 -= 7;
+						rectX2 -= 7;
+						SetRect(&figureRt, rectX1, rectY1, rectX2, rectY2);
+						FillRect(hdc, &figureRt, rectangleBrush);
+						InvalidateRect(hWnd, NULL, TRUE);
+						timeCounter--;
+					}
+					else
+						KillTimer(hWnd, 1);
+				}
+				break;
+				case 2: // Отскок вправо
+				{
+					if (timeCounter != 0)
+					{
+						rectX1 += 7;
+						rectX2 += 7;
+						SetRect(&figureRt, rectX1, rectY1, rectX2, rectY2);
+						FillRect(hdc, &figureRt, rectangleBrush);
+						InvalidateRect(hWnd, NULL, TRUE);
+						timeCounter--;
+					}
+					else
+						KillTimer(hWnd, 2);
+				}
+				break;
+				case 3: // Отскок вниз
+				{
+					if (timeCounter != 0)
+					{
+						rectY1 += 7;
+						rectY2 += 7;
+						SetRect(&figureRt, rectX1, rectY1, rectX2, rectY2);
+						FillRect(hdc, &figureRt, rectangleBrush);
+						InvalidateRect(hWnd, NULL, TRUE);
+						timeCounter--;
+					}
+					else
+						KillTimer(hWnd, 3);
+				}
+				break;
+				case 4: // Отскок вверх
+				{
+					if (timeCounter != 0)
+					{
+						rectY1 -= 7;
+						rectY2 -= 7;
+						SetRect(&figureRt, rectX1, rectY1, rectX2, rectY2);
+						FillRect(hdc, &figureRt, rectangleBrush);
+						InvalidateRect(hWnd, NULL, TRUE);
+						timeCounter--;
+					}
+					else
+						KillTimer(hWnd, 4);
+				}
+				break;
+			}
+
 		}
 		break;
 		case WM_LBUTTONUP:
