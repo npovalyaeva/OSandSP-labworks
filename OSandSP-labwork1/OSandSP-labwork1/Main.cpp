@@ -1,6 +1,9 @@
 #include <windows.h> //Содержит все базовые функции WinAPI
 #include <tchar.h>
 
+#define REBOUND_COUNT 7 // Количество отскоков, которые выполнит спрайт, когда дойдет до границы окна
+#define REBOUND_STEP 7 // Длина одного отскока
+#define RECT_STEP 3 // На сколько пикселей сдвинется спрайт во время одной из манипуляций: нажатии кнопки на клавиатуре, прокрутки колесика 
 
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 TCHAR WinClassName[] = _T("MainClass");
@@ -18,7 +21,7 @@ int APIENTRY _tWinMain(HINSTANCE hInstance, // Описатель (дескриптор) загруженно
 
 	// Определение класса окна
 	wcex.cbSize = sizeof(WNDCLASSEX); //Указывается для удобства последующей сериализации
-	wcex.style = CS_HREDRAW | CS_VREDRAW;
+	wcex.style = CS_HREDRAW;
 	wcex.lpfnWndProc = WndProc; // Указатель на процедуру, обрабатывающую сообщения
 	wcex.cbClsExtra = 0; // Число дополнительных байтов для оконного класса
 	wcex.cbWndExtra = 0; // Число дополнительных байтов для окна
@@ -58,11 +61,6 @@ int APIENTRY _tWinMain(HINSTANCE hInstance, // Описатель (дескриптор) загруженно
 	return 0;
 }
 
-#define REBOUND_COUNT 7 // Количество отскоков, которые выполнит сплайт, когда дойдет до границы окна
-#define REBOUND_STEP 7 // Длина одного отскока
-#define RECT_STEP 3 // На сколько пикселей сдвинется сплайт во время одной из манипуляций: нажатии кнопки на клавиатуре, прокрутки колесика 
-
-
 HDC hdc; // Дескриптор контекста устройства
 PAINTSTRUCT ps;
 RECT figureRt, backRt;
@@ -76,13 +74,19 @@ HBRUSH rectangleBrush, backgroundBrush;
 COLORREF backgroundColor = RGB(231, 231, 231), rectangleColor = RGB(1, 90, 91);
 int wheelScrolling;
 
-
 void FindRectangleSize(int winX, int winY, int &x1, int &y1, int &x2, int &y2)
 {
 	x1 = winX * 3 / 8;
 	y1 = winY * 3 / 8;
 	x2 = winX * 5 / 8;
 	y2 = winY * 5 / 8;
+}
+
+void DrawSprite(HWND hWnd)
+{
+	SetRect(&figureRt, rectX1, rectY1, rectX2, rectY2);
+	FillRect(hdc, &figureRt, rectangleBrush);
+	InvalidateRect(hWnd, NULL, TRUE);
 }
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -128,9 +132,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 					{
 						rectX1 += RECT_STEP; 
 						rectX2 += RECT_STEP;
-						SetRect(&figureRt, rectX1, rectY1, rectX2, rectY2);
-						FillRect(hdc, &figureRt, rectangleBrush);
-						InvalidateRect(hWnd, NULL, TRUE);
+						DrawSprite(hWnd);
 					}
 					if (rectX2 >= windowX)
 					{
@@ -145,9 +147,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 					{
 						rectX1 -= RECT_STEP; 
 						rectX2 -= RECT_STEP;
-						SetRect(&figureRt, rectX1, rectY1, rectX2, rectY2);
-						FillRect(hdc, &figureRt, rectangleBrush);
-						InvalidateRect(hWnd, NULL, TRUE);
+						DrawSprite(hWnd);
 					}
 					if (rectX1 <= 0)
 					{
@@ -162,9 +162,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 					{
 						rectY1 -= RECT_STEP; 
 						rectY2 -= RECT_STEP;
-						SetRect(&figureRt, rectX1, rectY1, rectX2, rectY2);
-						FillRect(hdc, &figureRt, rectangleBrush);
-						InvalidateRect(hWnd, NULL, TRUE);
+						DrawSprite(hWnd);
 					}
 					if (rectY1 <= 0)
 					{
@@ -180,9 +178,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 					{
 						rectY1 += RECT_STEP; 
 						rectY2 += RECT_STEP;
-						SetRect(&figureRt, rectX1, rectY1, rectX2, rectY2);
-						FillRect(hdc, &figureRt, rectangleBrush);
-						InvalidateRect(hWnd, NULL, TRUE);
+						DrawSprite(hWnd);
 					}
 					if (rectY2 >= windowY)
 					{
@@ -206,17 +202,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				{ // Прокрутка влево
 					rectX1 -= RECT_STEP; 
 					rectX2 -= RECT_STEP;
-					SetRect(&figureRt, rectX1, rectY1, rectX2, rectY2);
-					FillRect(hdc, &figureRt, rectangleBrush);
-					InvalidateRect(hWnd, NULL, TRUE);
+					DrawSprite(hWnd);
 				}
 				if ((wheelScrolling < 0) && (rectX2 < windowX))
 				{ // Прокрутка вправо
 					rectX1 += RECT_STEP; 
 					rectX2 += RECT_STEP;
-					SetRect(&figureRt, rectX1, rectY1, rectX2, rectY2);
-					FillRect(hdc, &figureRt, rectangleBrush);
-					InvalidateRect(hWnd, NULL, TRUE);
+					DrawSprite(hWnd);
 				}
 			}
 			else
@@ -224,19 +216,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				if ((wheelScrolling > 0) && (rectY1 > 0))
 				{ // Прокрутка вверх
 					rectY1 -= RECT_STEP; rectY2 -= RECT_STEP;
-					SetRect(&figureRt, rectX1, rectY1, rectX2, rectY2);
-					FillRect(hdc, &figureRt, rectangleBrush);
-					InvalidateRect(hWnd, NULL, TRUE);
+					DrawSprite(hWnd);
 				}
 				if ((wheelScrolling < 0) && (rectY2 < windowY))
 				{ // Прокрутка вниз
 					rectY1 += RECT_STEP; rectY2 += RECT_STEP;
-					SetRect(&figureRt, rectX1, rectY1, rectX2, rectY2);
-					FillRect(hdc, &figureRt, rectangleBrush);
-					InvalidateRect(hWnd, NULL, TRUE);
+					DrawSprite(hWnd);
 				}
 			}
-			
 		}
 		break;
 		case WM_LBUTTONDOWN:
@@ -261,9 +248,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				rectX2 = rectX1 + rectangleWidth;
 				rectY2 = rectY1 + rectangleHeight;
 
-				SetRect(&figureRt, rectX1, rectY1, rectX2, rectY2);
-				FillRect(hdc, &figureRt, rectangleBrush);
-				InvalidateRect(hWnd, NULL, TRUE);
+				DrawSprite(hWnd);
 
 				mouseInitialX = mouseCurrentX;
 				mouseInitialY = mouseCurrentY;
@@ -278,10 +263,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				{
 					if (timeCounter != 0)
 					{
-						rectX1 -= REBOUND_STEP; rectX2 -= REBOUND_STEP;
-						SetRect(&figureRt, rectX1, rectY1, rectX2, rectY2);
-						FillRect(hdc, &figureRt, rectangleBrush);
-						InvalidateRect(hWnd, NULL, TRUE);
+						rectX1 -= REBOUND_STEP; 
+						rectX2 -= REBOUND_STEP;
+						DrawSprite(hWnd);
 						timeCounter--;
 					}
 					else
@@ -292,10 +276,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				{
 					if (timeCounter != 0)
 					{
-						rectX1 += REBOUND_STEP; rectX2 += REBOUND_STEP;
-						SetRect(&figureRt, rectX1, rectY1, rectX2, rectY2);
-						FillRect(hdc, &figureRt, rectangleBrush);
-						InvalidateRect(hWnd, NULL, TRUE);
+						rectX1 += REBOUND_STEP; 
+						rectX2 += REBOUND_STEP;
+						DrawSprite(hWnd);
 						timeCounter--;
 					}
 					else
@@ -306,10 +289,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				{
 					if (timeCounter != 0)
 					{
-						rectY1 += REBOUND_STEP; rectY2 += REBOUND_STEP;
-						SetRect(&figureRt, rectX1, rectY1, rectX2, rectY2);
-						FillRect(hdc, &figureRt, rectangleBrush);
-						InvalidateRect(hWnd, NULL, TRUE);
+						rectY1 += REBOUND_STEP; 
+						rectY2 += REBOUND_STEP;
+						DrawSprite(hWnd);
 						timeCounter--;
 					}
 					else
@@ -320,10 +302,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				{
 					if (timeCounter != 0)
 					{
-						rectY1 -= REBOUND_STEP; rectY2 -= REBOUND_STEP;
-						SetRect(&figureRt, rectX1, rectY1, rectX2, rectY2);
-						FillRect(hdc, &figureRt, rectangleBrush);
-						InvalidateRect(hWnd, NULL, TRUE);
+						rectY1 -= REBOUND_STEP; 
+						rectY2 -= REBOUND_STEP;
+						DrawSprite(hWnd);
 						timeCounter--;
 					}
 					else
@@ -351,3 +332,5 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	}
 	return 0;
 }
+
+
