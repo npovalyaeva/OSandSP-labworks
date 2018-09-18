@@ -1,6 +1,8 @@
 #include <windows.h> //Содержит все базовые функции WinAPI
 #include <tchar.h>
 
+#pragma comment(lib,"msimg32")
+
 #define REBOUND_COUNT 7 // Количество отскоков, которые выполнит спрайт, когда дойдет до границы окна
 #define REBOUND_STEP 7 // Длина одного отскока
 #define RECT_STEP 3 // На сколько пикселей сдвинется спрайт во время одной из манипуляций: нажатии кнопки на клавиатуре, прокрутки колесика 
@@ -64,7 +66,13 @@ int APIENTRY _tWinMain(HINSTANCE hInstance, // Описатель (дескриптор) загруженно
 HDC hdc; // Дескриптор контекста устройства
 PAINTSTRUCT ps;
 RECT figureRt, backRt;
+HBITMAP hBitmap;
+BITMAP bm;
+HDC memBit;
 bool firstWinSizeFlag = true, movingFlag = false;
+
+bool modeFlag = true; // Режим отображения: true - загруженная .bmp, false - нарисованный спрайт
+
 int timeCounter;
 int rectX1, rectY1, rectX2, rectY2;
 int rectangleWidth, rectangleHeight;
@@ -95,6 +103,18 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	{
 		case WM_CREATE:
 		{
+			hBitmap = (HBITMAP)LoadImage(NULL, _T("D:\\Git\\OSandSP-labworks\\OSandSP-labwork1\\fallen-leaf.bmp"), IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+			if (hBitmap == NULL)
+			{
+				MessageBox(hWnd, _T("Файл не найден"), _T("Загрузка изображения"),
+					MB_OK | MB_ICONHAND);
+			}
+			GetObject(hBitmap, sizeof(bm), &bm);
+			hdc = GetDC(hWnd);
+			memBit = CreateCompatibleDC(hdc);
+			SelectObject(memBit, hBitmap);
+			ReleaseDC(hWnd, hdc);
+
 			rectangleBrush = CreateSolidBrush(rectangleColor); // Cоздание кисти
 			backgroundBrush = CreateSolidBrush(backgroundColor);
 		}
@@ -117,8 +137,17 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			hdc = BeginPaint(hWnd, &ps);
 			SetRect(&backRt, 0, 0, windowX, windowY);
 			FillRect(hdc, &backRt, backgroundBrush);
-			SetRect(&figureRt, rectX1, rectY1, rectX2, rectY2);
-			FillRect(hdc, &figureRt, rectangleBrush);
+			if (!modeFlag)
+			{
+				SetRect(&figureRt, rectX1, rectY1, rectX2, rectY2);
+				FillRect(hdc, &figureRt, rectangleBrush);
+			}
+			else
+			{
+				TransparentBlt(hdc, rectX1, rectY1, bm.bmWidth, bm.bmHeight, memBit, 0, 0, bm.bmWidth, bm.bmHeight, RGB(255, 255, 255));
+				rectX2 = rectX1 + bm.bmWidth;
+				rectY2 = rectY1 + bm.bmHeight;
+			}
 			EndPaint(hWnd, &ps);
 		}
 		break;
