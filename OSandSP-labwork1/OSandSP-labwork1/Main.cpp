@@ -68,10 +68,14 @@ PAINTSTRUCT ps;
 RECT figureRt, backRt;
 HBITMAP hBitmap;
 BITMAP bm;
+
+HMENU hMenu;
+HMENU hSpriteTypeMenu;
+
 HDC memBit;
 bool firstWinSizeFlag = true, movingFlag = false;
 
-bool modeFlag = true; // Режим отображения: true - загруженная .bmp, false - нарисованный спрайт
+bool modeFlag = false; // Режим отображения: true - загруженная .bmp, false - нарисованный спрайт
 
 int timeCounter;
 int rectX1, rectY1, rectX2, rectY2;
@@ -97,17 +101,27 @@ void DrawSprite(HWND hWnd)
 	InvalidateRect(hWnd, NULL, TRUE);
 }
 
+void AddMenu(HWND hWnd)
+{
+	hMenu = CreateMenu();
+	hSpriteTypeMenu = CreatePopupMenu();
+	AppendMenu(hMenu, MF_POPUP, (UINT_PTR)hSpriteTypeMenu, L"Mood");
+	AppendMenu(hSpriteTypeMenu, MF_STRING, 1, L"Boring sprite");
+	AppendMenu(hSpriteTypeMenu, MF_STRING, 2, L"Autumn leaves");
+	AppendMenu(hMenu, MF_STRING, 3, L"About");
+	SetMenu(hWnd, hMenu);
+}
+
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	switch (message)
 	{
 		case WM_CREATE:
-		{
+			AddMenu(hWnd);
 			hBitmap = (HBITMAP)LoadImage(NULL, _T("D:\\Git\\OSandSP-labworks\\OSandSP-labwork1\\fallen-leaf.bmp"), IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
 			if (hBitmap == NULL)
 			{
-				MessageBox(hWnd, _T("Файл не найден"), _T("Загрузка изображения"),
-					MB_OK | MB_ICONHAND);
+				MessageBox(hWnd, _T("Файл не найден"), _T("Загрузка изображения"), MB_OK | MB_ICONHAND);
 			}
 			GetObject(hBitmap, sizeof(bm), &bm);
 			hdc = GetDC(hWnd);
@@ -117,10 +131,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 			rectangleBrush = CreateSolidBrush(rectangleColor); // Cоздание кисти
 			backgroundBrush = CreateSolidBrush(backgroundColor);
-		}
 		break;
 		case WM_SIZE:
-		{
 			windowX = LOWORD(lParam); // Ширина окна
 			windowY = HIWORD(lParam); // Высота окна
 			if (firstWinSizeFlag) 			
@@ -130,15 +142,30 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				rectangleWidth = rectX2 - rectX1; // Ширина созданного спрайта
 				rectangleHeight = rectY2 - rectY1; // Высота созданного спрайта
 			}
-		}
 		break;
+		case WM_COMMAND:
+			switch (wParam) {
+			case 1: // Mood - Boring sprite
+				modeFlag = false;
+				InvalidateRect(hWnd, NULL, TRUE);
+				break;
+			case 2: // Mood - Autumn leaves
+				modeFlag = true;
+				InvalidateRect(hWnd, NULL, TRUE);
+				break;
+			case 3: // About
+				MessageBox(hWnd, L"Subject: Operating systems and system programming;\r\nAuthor: Nadya Povalyaeva, 651001;\r\nControl: Evgeny Bazylev.", L"About", MB_OK);
+				break;
+			}
+			break;
 		case WM_PAINT:
-		{
 			hdc = BeginPaint(hWnd, &ps);
 			SetRect(&backRt, 0, 0, windowX, windowY);
 			FillRect(hdc, &backRt, backgroundBrush);
 			if (!modeFlag)
 			{
+				rectX2 = rectX1 + rectangleWidth;
+				rectY2 = rectY1 + rectangleHeight;
 				SetRect(&figureRt, rectX1, rectY1, rectX2, rectY2);
 				FillRect(hdc, &figureRt, rectangleBrush);
 			}
@@ -149,14 +176,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				rectY2 = rectY1 + bm.bmHeight;
 			}
 			EndPaint(hWnd, &ps);
-		}
 		break;
 		case WM_KEYDOWN:
-		{
 			switch (wParam)
 			{
 				case VK_RIGHT:
-				{
 					if (rectX2 < windowX)
 					{
 						rectX1 += RECT_STEP; 
@@ -168,10 +192,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 						SetTimer(hWnd, 1, 10, NULL);
 						timeCounter = REBOUND_COUNT;
 					}
-				}
 				break;
 				case VK_LEFT:
-				{
 					if (rectX1 > 0)
 					{
 						rectX1 -= RECT_STEP; 
@@ -183,10 +205,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 						SetTimer(hWnd, 2, 10, NULL);
 						timeCounter = REBOUND_COUNT;
 					}
-				}
 				break;
 				case VK_UP:
-				{
 					if (rectY1 > 0)
 					{
 						rectY1 -= RECT_STEP; 
@@ -198,11 +218,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 						SetTimer(hWnd, 3, 10, NULL);
 						timeCounter = REBOUND_COUNT;
 					}
-
-				}
 				break;
 				case VK_DOWN:
-				{
 					if (rectY2 < windowY)
 					{
 						rectY1 += RECT_STEP; 
@@ -214,15 +231,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 						SetTimer(hWnd, 4, 10, NULL);
 						timeCounter = REBOUND_COUNT;
 					}
-				}
 				break;
 				default:
 					return DefWindowProc(hWnd, message, wParam, lParam);
 			}
-		}
 		break;
 		case WM_MOUSEWHEEL: // Обработка прокрутки колесика
-		{
 			wheelScrolling = GET_WHEEL_DELTA_WPARAM(wParam); // Интервал, на который прокрутилось колесико
 			// Положительное значение указывает, что колесико вращалось вперед, в сторону от пользователя; отрицательное значение указывает, что колесико вращалось назад, к пользователю.
 			if (GetAsyncKeyState(VK_SHIFT)) // Нажата ли клавиша SHIFT
@@ -253,20 +267,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 					DrawSprite(hWnd);
 				}
 			}
-		}
 		break;
 		case WM_LBUTTONDOWN:
-		{
 			mouseInitialX = LOWORD(lParam); // Начальные координаты курсора
 			mouseInitialY = HIWORD(lParam);
 			if ((mouseInitialX >= rectX1) && (mouseInitialX <= rectX2) && (mouseInitialY >= rectY1) && (mouseInitialY <= rectY2)) // Принадлежит ли курсор спрайту
 			{
 				movingFlag = true; // Установить флаг движения спрайта в TRUE
 			}
-		}
 		break;
 		case WM_MOUSEMOVE:
-		{
 			if (movingFlag)
 			{
 				mouseCurrentX = LOWORD(lParam); // Текущие координаты курсора
@@ -282,10 +292,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				mouseInitialX = mouseCurrentX;
 				mouseInitialY = mouseCurrentY;
 			}
-		}
 		break;
 		case WM_TIMER: // Таймер отвечает за реализацию отскока от границы окна во время движения спрайта
-		{
 			switch (wParam)
 			{
 				case 1: // Отскок влево
@@ -341,25 +349,17 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				}
 				break;
 			}
-
-		}
 		break;
 		case WM_LBUTTONUP:
-		{
 			movingFlag = false; // Установить флаг движения спрайта в FALSE
-		}
 		break;
 		case WM_DESTROY:
-		{
 			// Удаление созданных объектов
 			DeleteObject(backgroundBrush);
 			DeleteObject(rectangleBrush);
 			PostQuitMessage(0);
-		}
 		break;
 		default: return DefWindowProc(hWnd, message, wParam, lParam);
 	}
 	return 0;
 }
-
-
