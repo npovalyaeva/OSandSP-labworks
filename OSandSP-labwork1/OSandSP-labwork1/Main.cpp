@@ -1,6 +1,5 @@
 #include <windows.h> //Содержит все базовые функции WinAPI
 #include <tchar.h>
-
 #pragma comment(lib,"msimg32")
 
 #define REBOUND_COUNT 7 // Количество отскоков, которые выполнит спрайт, когда дойдет до границы окна
@@ -94,22 +93,15 @@ void FindRectangleSize(int winX, int winY, int &x1, int &y1, int &x2, int &y2)
 	y2 = winY * 5 / 8;
 }
 
-void DrawSprite(HWND hWnd)
-{
-	SetRect(&figureRt, rectX1, rectY1, rectX2, rectY2);
-	FillRect(hdc, &figureRt, rectangleBrush);
-	InvalidateRect(hWnd, NULL, TRUE);
-}
-
 void AddMenu(HWND hWnd)
 {
-	hMenu = CreateMenu();
-	hSpriteTypeMenu = CreatePopupMenu();
-	AppendMenu(hMenu, MF_POPUP, (UINT_PTR)hSpriteTypeMenu, L"Mood");
-	AppendMenu(hSpriteTypeMenu, MF_STRING, 1, L"Boring sprite");
+	hMenu = CreateMenu(); // Создание пустого меню
+	hSpriteTypeMenu = CreatePopupMenu(); // Создание временного меню
+	AppendMenu(hMenu, MF_POPUP, (UINT_PTR)hSpriteTypeMenu, L"Mood"); // Добавление разделов
+	AppendMenu(hSpriteTypeMenu, MF_STRING, 1, L"Boring sprite"); 
 	AppendMenu(hSpriteTypeMenu, MF_STRING, 2, L"Autumn leaves");
 	AppendMenu(hMenu, MF_STRING, 3, L"About");
-	SetMenu(hWnd, hMenu);
+	SetMenu(hWnd, hMenu); // Подключение меню к окну с hWnd
 }
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -118,16 +110,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	{
 		case WM_CREATE:
 			AddMenu(hWnd);
-			hBitmap = (HBITMAP)LoadImage(NULL, _T("D:\\Git\\OSandSP-labworks\\OSandSP-labwork1\\fallen-leaf.bmp"), IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
-			if (hBitmap == NULL)
+			hBitmap = (HBITMAP)LoadImage(NULL, _T("D:\\Git\\OSandSP-labworks\\OSandSP-labwork1\\fallen-leaf.bmp"), IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE); // Загрузка изображения
+			if (hBitmap == NULL) // Вывод сообщения при ошибке во время загрузки
 			{
 				MessageBox(hWnd, _T("Файл не найден"), _T("Загрузка изображения"), MB_OK | MB_ICONHAND);
 			}
-			GetObject(hBitmap, sizeof(bm), &bm);
-			hdc = GetDC(hWnd);
-			memBit = CreateCompatibleDC(hdc);
-			SelectObject(memBit, hBitmap);
-			ReleaseDC(hWnd, hdc);
+			GetObject(hBitmap, sizeof(bm), &bm); // Извлечение информации б объекте
+			hdc = GetDC(hWnd); // Извлечение дескриптора дисплейного контекста устройства
+			memBit = CreateCompatibleDC(hdc); // Создание виртуального контекста устройства, совместимого с заданным контекстом
+			SelectObject(memBit, hBitmap); // Выбор объекта hBitmap в контекст устройства memBit
+			ReleaseDC(hWnd, hdc); // Освобождение контекста устройства
 
 			rectangleBrush = CreateSolidBrush(rectangleColor); // Cоздание кисти
 			backgroundBrush = CreateSolidBrush(backgroundColor);
@@ -185,7 +177,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 					{
 						rectX1 += RECT_STEP; 
 						rectX2 += RECT_STEP;
-						DrawSprite(hWnd);
+						InvalidateRect(hWnd, NULL, TRUE);
 					}
 					if (rectX2 >= windowX)
 					{
@@ -198,7 +190,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 					{
 						rectX1 -= RECT_STEP; 
 						rectX2 -= RECT_STEP;
-						DrawSprite(hWnd);
+						InvalidateRect(hWnd, NULL, TRUE);
 					}
 					if (rectX1 <= 0)
 					{
@@ -211,7 +203,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 					{
 						rectY1 -= RECT_STEP; 
 						rectY2 -= RECT_STEP;
-						DrawSprite(hWnd);
+						InvalidateRect(hWnd, NULL, TRUE);
 					}
 					if (rectY1 <= 0)
 					{
@@ -224,7 +216,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 					{
 						rectY1 += RECT_STEP; 
 						rectY2 += RECT_STEP;
-						DrawSprite(hWnd);
+						InvalidateRect(hWnd, NULL, TRUE);
 					}
 					if (rectY2 >= windowY)
 					{
@@ -245,13 +237,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				{ // Прокрутка влево
 					rectX1 -= RECT_STEP; 
 					rectX2 -= RECT_STEP;
-					DrawSprite(hWnd);
+					InvalidateRect(hWnd, NULL, TRUE);
 				}
 				if ((wheelScrolling < 0) && (rectX2 < windowX))
 				{ // Прокрутка вправо
 					rectX1 += RECT_STEP; 
 					rectX2 += RECT_STEP;
-					DrawSprite(hWnd);
+					InvalidateRect(hWnd, NULL, TRUE);
 				}
 			}
 			else
@@ -259,12 +251,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				if ((wheelScrolling > 0) && (rectY1 > 0))
 				{ // Прокрутка вверх
 					rectY1 -= RECT_STEP; rectY2 -= RECT_STEP;
-					DrawSprite(hWnd);
+					InvalidateRect(hWnd, NULL, TRUE);
 				}
 				if ((wheelScrolling < 0) && (rectY2 < windowY))
 				{ // Прокрутка вниз
 					rectY1 += RECT_STEP; rectY2 += RECT_STEP;
-					DrawSprite(hWnd);
+					InvalidateRect(hWnd, NULL, TRUE);
 				}
 			}
 		break;
@@ -287,7 +279,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				rectX2 = rectX1 + rectangleWidth;
 				rectY2 = rectY1 + rectangleHeight;
 
-				DrawSprite(hWnd);
+				InvalidateRect(hWnd, NULL, TRUE);
 
 				mouseInitialX = mouseCurrentX;
 				mouseInitialY = mouseCurrentY;
@@ -297,56 +289,48 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			switch (wParam)
 			{
 				case 1: // Отскок влево
-				{
 					if (timeCounter != 0)
 					{
 						rectX1 -= REBOUND_STEP; 
 						rectX2 -= REBOUND_STEP;
-						DrawSprite(hWnd);
+						InvalidateRect(hWnd, NULL, TRUE);
 						timeCounter--;
 					}
 					else
 						KillTimer(hWnd, 1);
-				}
 				break;
 				case 2: // Отскок вправо
-				{
 					if (timeCounter != 0)
 					{
 						rectX1 += REBOUND_STEP; 
 						rectX2 += REBOUND_STEP;
-						DrawSprite(hWnd);
+						InvalidateRect(hWnd, NULL, TRUE);
 						timeCounter--;
 					}
 					else
 						KillTimer(hWnd, 2);
-				}
 				break;
 				case 3: // Отскок вниз
-				{
 					if (timeCounter != 0)
 					{
 						rectY1 += REBOUND_STEP; 
 						rectY2 += REBOUND_STEP;
-						DrawSprite(hWnd);
+						InvalidateRect(hWnd, NULL, TRUE);
 						timeCounter--;
 					}
 					else
 						KillTimer(hWnd, 3);
-				}
 				break;
 				case 4: // Отскок вверх
-				{
 					if (timeCounter != 0)
 					{
 						rectY1 -= REBOUND_STEP; 
 						rectY2 -= REBOUND_STEP;
-						DrawSprite(hWnd);
+						InvalidateRect(hWnd, NULL, TRUE);
 						timeCounter--;
 					}
 					else
 						KillTimer(hWnd, 4);
-				}
 				break;
 			}
 		break;
@@ -357,6 +341,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			// Удаление созданных объектов
 			DeleteObject(backgroundBrush);
 			DeleteObject(rectangleBrush);
+			DeleteObject(hBitmap);
 			PostQuitMessage(0);
 		break;
 		default: return DefWindowProc(hWnd, message, wParam, lParam);
