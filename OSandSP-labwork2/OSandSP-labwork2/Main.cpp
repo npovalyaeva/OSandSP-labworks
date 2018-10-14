@@ -1,6 +1,7 @@
 #include <windows.h>
 #include <tchar.h>
 #include "resource.h"
+#include <math.h>
 
 #define CLASS_NAME "MainClass" 
 #define WINDOW_NAME "Multiplication Table"
@@ -18,6 +19,7 @@ LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK DlgProc(HWND, UINT, WPARAM, LPARAM);
 
 VOID AddMenu(HWND);
+VOID PaintTable(HWND);
 
 TCHAR WinClassName[] = _T(CLASS_NAME);
 
@@ -55,14 +57,13 @@ int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCm
 
 HDC hdc;
 PAINTSTRUCT ps;
-RECT backRt;
+RECT backRt, cellRt;
 HBRUSH backgroundBrush;
 COLORREF backgroundColor = COLOR_BACKGROUND;
-int windowX, windowY;
+int windowWidth, windowHeight;
 HMENU hMenu;
-int rows, columns;
+int rows = 10, columns = 10;
 BOOL isRowsNum, isColumnsNum;
-
 
 VOID AddMenu(HWND hWnd)
 {
@@ -70,6 +71,34 @@ VOID AddMenu(HWND hWnd)
 	AppendMenu(hMenu, MF_STRING, 1, MENU_CHANGESIZE_TITLE);
 	AppendMenu(hMenu, MF_STRING, 2, MENU_ABOUT_TITLE);
 	SetMenu(hWnd, hMenu);
+}
+
+VOID FindTableParameters(int* cellWidth, int* cellHeight)
+{
+	*cellHeight = (int)ceil(windowHeight / (rows + 1));
+	*cellWidth = (int)ceil(windowWidth / (columns + 1));
+
+}
+
+VOID PaintTable(HWND hWnd)
+{
+	int cellWidth, cellHeight;
+	HBRUSH tableBrush;
+	COLORREF tableColor = COLOR_TABLE;
+
+	FindTableParameters(&cellWidth, &cellHeight);
+
+	tableBrush = CreateSolidBrush(tableColor);
+
+	int borderHeight = (windowHeight - (rows + 1) * cellHeight) / 2;
+	int borderWidth = (windowWidth - (columns + 1) * cellWidth) / 2;
+
+	for (int i = 0; i <= rows; i++)
+		for (int j = 0; j <= columns; j++) 
+		{
+			SetRect(&cellRt, borderWidth + cellWidth * j, borderHeight + cellHeight * i, borderWidth + cellWidth * (j + 1), borderHeight + cellHeight * (i + 1));
+			FrameRect(hdc, &cellRt, tableBrush);
+		}
 }
 
 BOOL CheckUserSize()
@@ -89,8 +118,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message,
 		backgroundBrush = CreateSolidBrush(backgroundColor);
 		break;
 	case WM_SIZE:
-		windowX = LOWORD(lParam);
-		windowY = HIWORD(lParam);
+		windowWidth = LOWORD(lParam);
+		windowHeight = HIWORD(lParam);
+		InvalidateRect(hWnd, NULL, TRUE);
+
 		break;
 	case WM_COMMAND:
 		switch (wParam) {
@@ -104,11 +135,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message,
 		break;
 	case WM_PAINT:
 		hdc = BeginPaint(hWnd, &ps);
-		SetRect(&backRt, 0, 0, windowX, windowY);
+		SetRect(&backRt, 0, 0, windowWidth, windowHeight);
 		FillRect(hdc, &backRt, backgroundBrush);
+		PaintTable(hWnd);
 		EndPaint(hWnd, &ps);
 		break;
 	case WM_DESTROY:
+		DeleteObject(backgroundBrush);
 		PostQuitMessage(0);
 		break;
 	default:
@@ -157,4 +190,3 @@ INT_PTR CALLBACK DlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	}
 	return TRUE;
 }
-
