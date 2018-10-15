@@ -1,13 +1,22 @@
 #include <windows.h>
 #include <tchar.h>
 #include "resource.h"
-#include <math.h>
+//#include <math.h>
+#include <fstream>
 
 #define CLASS_NAME "MainClass" 
 #define WINDOW_NAME "Multiplication Table"
 #define MENU_CHANGESIZE_TITLE L"Change Size"
 #define MENU_ABOUT_TITLE L"About"
 #define MENU_ABOUT_TEXT L"Subject: Operating systems and system programming;\r\nAuthor: Nadya Povalyaeva, 651001;\r\nControl: Evgeny Bazylev."
+
+#define FILE_PATH "D:\\Git\\OSandSP-labworks\\OSandSP-labwork2\\table.txt"
+#define FILE_MODE "r"
+#define OPENFILE_ERROR_MESSAGE_CAPTION _T("Error")
+#define OPENFILE_ERROR_MESSAGE_TEXT _T("File not found")
+
+#define FILE_TABLE_ROWS 21
+#define FILE_TABLE_COLUMNS 21
 
 #define COLOR_BACKGROUND RGB(241, 242, 240);
 #define COLOR_TABLE RGB(191, 186, 190);
@@ -18,8 +27,11 @@ HINSTANCE hInst;
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK DlgProc(HWND, UINT, WPARAM, LPARAM);
 
+BOOL ReadFile();
 VOID AddMenu(HWND);
 VOID PaintTable(HWND);
+VOID FindTableParameters(int*, int*, int*, int*);
+BOOL CheckUserSize();
 
 TCHAR WinClassName[] = _T(CLASS_NAME);
 
@@ -55,6 +67,7 @@ int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCm
 	return 0;
 }
 
+FILE *file;
 HDC hdc;
 PAINTSTRUCT ps;
 RECT backRt, cellRt;
@@ -64,6 +77,21 @@ int windowWidth, windowHeight;
 HMENU hMenu;
 int rows = 10, columns = 10;
 BOOL isRowsNum, isColumnsNum;
+int table[FILE_TABLE_ROWS][FILE_TABLE_COLUMNS];
+
+BOOL ReadFile()
+{
+	std::ifstream in(FILE_PATH);
+	if (!in.is_open())
+		return false;
+	for (int i = 0; i < FILE_TABLE_ROWS; i++)
+	{
+		for (int j = 0; j < FILE_TABLE_COLUMNS; j++)
+			in >> table[i][j];
+	}
+	in.close();
+	return true;
+}
 
 VOID AddMenu(HWND hWnd)
 {
@@ -73,25 +101,14 @@ VOID AddMenu(HWND hWnd)
 	SetMenu(hWnd, hMenu);
 }
 
-VOID FindTableParameters(int* cellWidth, int* cellHeight)
-{
-	*cellHeight = (int)ceil(windowHeight / (rows + 1));
-	*cellWidth = (int)ceil(windowWidth / (columns + 1));
-
-}
-
 VOID PaintTable(HWND hWnd)
 {
-	int cellWidth, cellHeight;
+	int cellWidth, cellHeight, borderWidth, borderHeight;
 	HBRUSH tableBrush;
 	COLORREF tableColor = COLOR_TABLE;
 
-	FindTableParameters(&cellWidth, &cellHeight);
-
+	FindTableParameters(&cellWidth, &cellHeight, &borderWidth, &borderHeight);
 	tableBrush = CreateSolidBrush(tableColor);
-
-	int borderHeight = (windowHeight - (rows + 1) * cellHeight) / 2;
-	int borderWidth = (windowWidth - (columns + 1) * cellWidth) / 2;
 
 	for (int i = 0; i <= rows; i++)
 		for (int j = 0; j <= columns; j++) 
@@ -99,6 +116,14 @@ VOID PaintTable(HWND hWnd)
 			SetRect(&cellRt, borderWidth + cellWidth * j, borderHeight + cellHeight * i, borderWidth + cellWidth * (j + 1), borderHeight + cellHeight * (i + 1));
 			FrameRect(hdc, &cellRt, tableBrush);
 		}
+}
+
+VOID FindTableParameters(int* cellWidth, int* cellHeight, int* borderWidth, int* borderHeight)
+{
+	*cellHeight = (int)ceil(windowHeight / (rows + 1));
+	*cellWidth = (int)ceil(windowWidth / (columns + 1));
+	*borderHeight = (windowHeight - (rows + 1) * *cellHeight) / 2;
+	*borderWidth = (windowWidth - (columns + 1) * *cellWidth) / 2;
 }
 
 BOOL CheckUserSize()
@@ -114,6 +139,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message,
 	switch (message)
 	{
 	case WM_CREATE:
+		if (!ReadFile()) {
+			MessageBox(hWnd, OPENFILE_ERROR_MESSAGE_TEXT, OPENFILE_ERROR_MESSAGE_CAPTION, MB_OK | MB_ICONHAND);
+			ExitProcess(0);
+		}
 		AddMenu(hWnd);
 		backgroundBrush = CreateSolidBrush(backgroundColor);
 		break;

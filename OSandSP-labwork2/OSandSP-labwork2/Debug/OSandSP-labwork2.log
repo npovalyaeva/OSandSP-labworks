@@ -1,4 +1,4 @@
 ﻿  Main.cpp
-d:\git\osandsp-labworks\osandsp-labwork2\osandsp-labwork2\main.cpp(12): warning C4005: COLOR_BACKGROUND: изменение макроопределения
+d:\git\osandsp-labworks\osandsp-labwork2\osandsp-labwork2\main.cpp(21): warning C4005: COLOR_BACKGROUND: изменение макроопределения
   c:\program files (x86)\windows kits\10\include\10.0.17134.0\um\winuser.h(9314): note: см. предыдущее определение "COLOR_BACKGROUND"
   OSandSP-labwork2.vcxproj -> D:\Git\OSandSP-labworks\OSandSP-labwork2\Debug\OSandSP-labwork2.exe
