@@ -3,12 +3,16 @@
 #include "resource.h"
 //#include <math.h>
 #include <fstream>
+#include <string.h>
 
 #define CLASS_NAME "MainClass" 
 #define WINDOW_NAME "Multiplication Table"
 #define MENU_CHANGESIZE_TITLE L"Change Size"
 #define MENU_ABOUT_TITLE L"About"
 #define MENU_ABOUT_TEXT L"Subject: Operating systems and system programming;\r\nAuthor: Nadya Povalyaeva, 651001;\r\nControl: Evgeny Bazylev."
+
+#define FONT_NAME L"Courier New"
+//#define TEXT L"I'm fairy local, i've been around."
 
 #define FILE_PATH "D:\\Git\\OSandSP-labworks\\OSandSP-labwork2\\table.txt"
 #define FILE_MODE "r"
@@ -29,11 +33,26 @@ INT_PTR CALLBACK DlgProc(HWND, UINT, WPARAM, LPARAM);
 
 BOOL ReadFile();
 VOID AddMenu(HWND);
+VOID InitializeFont();
 VOID PaintTable(HWND);
 VOID FindTableParameters(int*, int*, int*, int*);
+VOID FillTable(int*, int*, int*, int*);
 BOOL CheckUserSize();
 
 TCHAR WinClassName[] = _T(CLASS_NAME);
+FILE *file;
+HDC hdc;
+PAINTSTRUCT ps;
+RECT backRt, cellRt;
+HBRUSH backgroundBrush;
+COLORREF backgroundColor = COLOR_BACKGROUND;
+int windowWidth, windowHeight;
+HMENU hMenu;
+int rows = 10, columns = 10;
+BOOL isRowsNum, isColumnsNum;
+int table[FILE_TABLE_ROWS][FILE_TABLE_COLUMNS];
+LOGFONT lf;
+HFONT hFont;
 
 int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmdShow)
 {
@@ -47,7 +66,7 @@ int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCm
 	wcex.hIcon = LoadIcon(NULL, IDI_APPLICATION);
 	wcex.hIconSm = wcex.hIcon;
 	wcex.hCursor = LoadCursor(NULL, IDC_ARROW);
-	wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+	wcex.hbrBackground = CreateSolidBrush(backgroundColor);
 	wcex.lpszMenuName = NULL;
 	wcex.lpszClassName = WinClassName;
 
@@ -67,28 +86,14 @@ int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCm
 	return 0;
 }
 
-FILE *file;
-HDC hdc;
-PAINTSTRUCT ps;
-RECT backRt, cellRt;
-HBRUSH backgroundBrush;
-COLORREF backgroundColor = COLOR_BACKGROUND;
-int windowWidth, windowHeight;
-HMENU hMenu;
-int rows = 10, columns = 10;
-BOOL isRowsNum, isColumnsNum;
-int table[FILE_TABLE_ROWS][FILE_TABLE_COLUMNS];
-
 BOOL ReadFile()
 {
 	std::ifstream in(FILE_PATH);
 	if (!in.is_open())
 		return false;
 	for (int i = 0; i < FILE_TABLE_ROWS; i++)
-	{
 		for (int j = 0; j < FILE_TABLE_COLUMNS; j++)
 			in >> table[i][j];
-	}
 	in.close();
 	return true;
 }
@@ -99,6 +104,25 @@ VOID AddMenu(HWND hWnd)
 	AppendMenu(hMenu, MF_STRING, 1, MENU_CHANGESIZE_TITLE);
 	AppendMenu(hMenu, MF_STRING, 2, MENU_ABOUT_TITLE);
 	SetMenu(hWnd, hMenu);
+}
+
+VOID InitializeFont()
+{
+	lf.lfHeight = 25; // Высота символьной ячейки шрифта в логических единицах
+	lf.lfWidth = 0; // Ширина символьной ячейки шрифта в логических единицах
+	lf.lfEscapement = 0; // Угол между вектором наклона и осью X устройства в десятых долях градусов
+	lf.lfOrientation = 0; // Угол между основной линией каждого символа и осью X устройства в десятых долях градусов
+	lf.lfWeight = FW_NORMAL; // Толщина шрифта в диапазоне 0..1000
+	lf.lfItalic = 0; // Курсивный шрифт
+	lf.lfUnderline = 0; // Подчеркнутый шрифт
+	lf.lfStrikeOut = 0; // Зачеркнутый шрифт
+	lf.lfCharSet = ANSI_CHARSET; // Набор символов
+	lf.lfOutPrecision = OUT_DEFAULT_PRECIS; // Точность вывода
+	lf.lfClipPrecision = CLIP_DEFAULT_PRECIS; // Точность отсечения
+	lf.lfQuality = PROOF_QUALITY; // Качество вывода
+	lf.lfPitchAndFamily = VARIABLE_PITCH | FF_MODERN; // Ширина символов и семейство шрифтов
+	wcscpy_s(lf.lfFaceName, FONT_NAME); // Название гарнитуры шрифта
+	hFont = CreateFontIndirect(&lf);
 }
 
 VOID PaintTable(HWND hWnd)
@@ -116,6 +140,7 @@ VOID PaintTable(HWND hWnd)
 			SetRect(&cellRt, borderWidth + cellWidth * j, borderHeight + cellHeight * i, borderWidth + cellWidth * (j + 1), borderHeight + cellHeight * (i + 1));
 			FrameRect(hdc, &cellRt, tableBrush);
 		}
+	FillTable(&cellWidth, &cellHeight, &borderWidth, &borderHeight);
 }
 
 VOID FindTableParameters(int* cellWidth, int* cellHeight, int* borderWidth, int* borderHeight)
@@ -124,6 +149,13 @@ VOID FindTableParameters(int* cellWidth, int* cellHeight, int* borderWidth, int*
 	*cellWidth = (int)ceil(windowWidth / (columns + 1));
 	*borderHeight = (windowHeight - (rows + 1) * *cellHeight) / 2;
 	*borderWidth = (windowWidth - (columns + 1) * *cellWidth) / 2;
+}
+
+VOID FillTable(int* cellWidth, int* cellHeight, int* borderWidth, int* borderHeight)
+{
+	SelectObject(hdc, hFont);
+	SetBkColor(hdc, backgroundColor);
+	//TextOut(hdc, 10, 10, TEXT, 35);
 }
 
 BOOL CheckUserSize()
@@ -144,13 +176,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message,
 			ExitProcess(0);
 		}
 		AddMenu(hWnd);
+		InitializeFont(); 
 		backgroundBrush = CreateSolidBrush(backgroundColor);
 		break;
 	case WM_SIZE:
 		windowWidth = LOWORD(lParam);
 		windowHeight = HIWORD(lParam);
 		InvalidateRect(hWnd, NULL, TRUE);
-
 		break;
 	case WM_COMMAND:
 		switch (wParam) {
@@ -164,13 +196,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message,
 		break;
 	case WM_PAINT:
 		hdc = BeginPaint(hWnd, &ps);
-		SetRect(&backRt, 0, 0, windowWidth, windowHeight);
-		FillRect(hdc, &backRt, backgroundBrush);
 		PaintTable(hWnd);
 		EndPaint(hWnd, &ps);
 		break;
 	case WM_DESTROY:
 		DeleteObject(backgroundBrush);
+		DeleteObject(hFont);
 		PostQuitMessage(0);
 		break;
 	default:
