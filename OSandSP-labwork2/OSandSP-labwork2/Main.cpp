@@ -19,6 +19,8 @@
 #define FILE_TABLE_ROWS 21
 #define FILE_TABLE_COLUMNS 21
 
+#define SCROLL_STEP 3
+
 #define COLOR_BACKGROUND RGB(241, 242, 240);
 #define COLOR_TABLE RGB(191, 186, 190);
 #define COLOR_TABLENUMBER RGB(85, 138, 134);
@@ -32,8 +34,9 @@ BOOL ReadFile();
 VOID AddMenu(HWND);
 VOID InitializeFont();
 VOID PaintTable(HWND);
-VOID FindTableParameters(int*, int*, int*, int*);
-VOID FillTable(int*, int*, int*, int*);
+VOID FindTableParameters();
+VOID AddVerticalScroll(HWND, LPARAM);
+VOID FillTable();
 BOOL CheckUserSize();
 
 TCHAR WinClassName[] = _T(CLASS_NAME);
@@ -47,11 +50,13 @@ COLORREF tableColor = COLOR_TABLE;
 COLORREF tableNumberColor = COLOR_TABLENUMBER;
 COLORREF tableAccentNumberColor = COLOR_TABLEACCENT;
 int windowWidth, windowHeight;
+int cellWidth, minCellWidth, cellHeight, borderWidth;
 HMENU hMenu;
-int rows = 10, columns = 10;
+int rows = 20, columns = 10;
 BOOL isRowsNum, isColumnsNum;
 int table[FILE_TABLE_ROWS][FILE_TABLE_COLUMNS];
 LOGFONT lf;
+TEXTMETRIC tm;
 HFONT hFont;
 
 int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmdShow)
@@ -108,7 +113,7 @@ VOID AddMenu(HWND hWnd)
 
 VOID InitializeFont()
 {
-	lf.lfHeight = 25; // ¬ысота символьной €чейки шрифта в логических единицах
+	lf.lfHeight = 20; // ¬ысота символьной €чейки шрифта в логических единицах
 	lf.lfWidth = 0; // Ўирина символьной €чейки шрифта в логических единицах
 	lf.lfEscapement = 0; // ”гол между вектором наклона и осью X устройства в дес€тых дол€х градусов
 	lf.lfOrientation = 0; // ”гол между основной линией каждого символа и осью X устройства в дес€тых дол€х градусов
@@ -127,31 +132,47 @@ VOID InitializeFont()
 
 VOID PaintTable(HWND hWnd)
 {
-	int cellWidth, cellHeight, borderWidth, borderHeight;
 	HBRUSH tableBrush;
 	COLORREF tableColor = COLOR_TABLE;
 
-	FindTableParameters(&cellWidth, &cellHeight, &borderWidth, &borderHeight);
+	FindTableParameters();
 	tableBrush = CreateSolidBrush(tableColor);
 
 	for (int i = 0; i <= rows; i++)
 		for (int j = 0; j <= columns; j++) 
 		{
-			SetRect(&cellRt, borderWidth + cellWidth * j, borderHeight + cellHeight * i, borderWidth + cellWidth * (j + 1), borderHeight + cellHeight * (i + 1));
+			//SetRect(&cellRt, borderWidth + cellWidth * j, borderHeight + cellHeight * i, borderWidth + cellWidth * (j + 1), borderHeight + cellHeight * (i + 1));
+			SetRect(&cellRt, borderWidth + cellWidth * j, cellHeight * i, borderWidth + cellWidth * (j + 1), cellHeight * (i + 1));
 			FrameRect(hdc, &cellRt, tableBrush);
 		}
-	FillTable(&cellWidth, &cellHeight, &borderWidth, &borderHeight);
+	FillTable();
 }
 
-VOID FindTableParameters(int* cellWidth, int* cellHeight, int* borderWidth, int* borderHeight)
+VOID FindTableParameters()
 {
-	*cellHeight = (int)ceil(windowHeight / (rows + 1));
-	*cellWidth = (int)ceil(windowWidth / (columns + 1));
-	*borderHeight = (windowHeight - (rows + 1) * *cellHeight) / 2;
-	*borderWidth = (windowWidth - (columns + 1) * *cellWidth) / 2;
+	SelectObject(hdc, hFont);
+	GetTextMetrics(hdc, &tm);
+	//*cellHeight = (int)ceil(windowHeight / (rows + 1));
+	cellHeight = tm.tmHeight + 4;
+	minCellWidth = (tm.tmAveCharWidth * 3) + 4;
+	cellWidth = (int)ceil(windowWidth / (columns + 1));
+	//borderHeight = (windowHeight - (rows + 1) * cellHeight) / 2;
+	borderWidth = (windowWidth - (columns + 1) * cellWidth) / 2;
 }
 
-VOID FillTable(int* cellWidth, int* cellHeight, int* borderWidth, int* borderHeight)
+VOID AddVerticalScroll(HWND hWnd, LPARAM lParam)
+{
+	long style;
+	style = GetWindowLong(hWnd, GWL_STYLE);
+	if (((rows + 1) * cellHeight) > HIWORD(lParam))
+		style |= WS_VSCROLL;
+	else
+		style &= ~WS_VSCROLL;
+	SetWindowLong(hWnd, GWL_STYLE, style);
+	SetWindowPos(hWnd, NULL, 0, 0, 0, 0, SWP_DRAWFRAME | SWP_FRAMECHANGED | SWP_NOZORDER | SWP_NOMOVE | SWP_NOSIZE);
+}
+
+VOID FillTable()
 {
 	wchar_t str[4];
 	SelectObject(hdc, hFont);
@@ -159,12 +180,10 @@ VOID FillTable(int* cellWidth, int* cellHeight, int* borderWidth, int* borderHei
 	for (int i = 0; i <= rows; i++)
 		for (int j = 0; j <= columns; j++)
 		{
-			if ((i == j) || (i == 0) || (j == 0))
-				SetTextColor(hdc, tableAccentNumberColor);
-			else
-				SetTextColor(hdc, tableNumberColor);
+			SetTextColor(hdc, ((i == j) || (i == 0) || (j == 0)) ? tableAccentNumberColor : tableNumberColor);
 			_itow_s(table[i][j], str, 10);
-			TextOut(hdc, *borderWidth + *cellWidth * j + 3, *borderHeight + *cellHeight * i + 1, str, _tcsclen(str));
+			//TextOut(hdc, borderWidth + cellWidth * j + 3, borderHeight + cellHeight * i + 1, str, _tcsclen(str));
+			TextOut(hdc, borderWidth + cellWidth * j + 3, cellHeight * i + 1, str, _tcsclen(str));
 		}
 }
 
@@ -178,6 +197,7 @@ BOOL CheckUserSize()
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message,
 	WPARAM wParam, LPARAM lParam)
 {
+	LPMINMAXINFO lpMMI = (LPMINMAXINFO)lParam;
 	switch (message)
 	{
 	case WM_CREATE:
@@ -186,14 +206,20 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message,
 			ExitProcess(0);
 		}
 		AddMenu(hWnd);
-		InitializeFont(); 
+		InitializeFont();
+		SelectObject(hdc, hFont);
+		GetTextMetrics(hdc, &tm);
 		backgroundBrush = CreateSolidBrush(backgroundColor);
 		tableBrush = CreateSolidBrush(tableColor);
 		break;
 	case WM_SIZE:
 		windowWidth = LOWORD(lParam);
 		windowHeight = HIWORD(lParam);
+		AddVerticalScroll(hWnd, lParam);
 		InvalidateRect(hWnd, NULL, TRUE);
+		break;
+	case WM_GETMINMAXINFO:
+		lpMMI->ptMinTrackSize.x = FILE_TABLE_COLUMNS * (minCellWidth + 5);
 		break;
 	case WM_COMMAND:
 		switch (wParam) {
@@ -209,6 +235,18 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message,
 		hdc = BeginPaint(hWnd, &ps);
 		PaintTable(hWnd);
 		EndPaint(hWnd, &ps);
+		break;
+	case WM_VSCROLL:
+		switch (wParam) {
+			case SB_LINEUP:
+			case SB_PAGEUP:
+				break;
+			case SB_LINEDOWN:
+			case SB_PAGEDOWN:
+				break;
+			case SB_THUMBTRACK:
+				break;
+		}
 		break;
 	case WM_DESTROY:
 		DeleteObject(backgroundBrush);
