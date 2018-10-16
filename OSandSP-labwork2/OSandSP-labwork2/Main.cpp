@@ -1,9 +1,7 @@
 #include <windows.h>
 #include <tchar.h>
 #include "resource.h"
-//#include <math.h>
 #include <fstream>
-#include <string.h>
 
 #define CLASS_NAME "MainClass" 
 #define WINDOW_NAME "Multiplication Table"
@@ -12,7 +10,6 @@
 #define MENU_ABOUT_TEXT L"Subject: Operating systems and system programming;\r\nAuthor: Nadya Povalyaeva, 651001;\r\nControl: Evgeny Bazylev."
 
 #define FONT_NAME L"Courier New"
-//#define TEXT L"I'm fairy local, i've been around."
 
 #define FILE_PATH "D:\\Git\\OSandSP-labworks\\OSandSP-labwork2\\table.txt"
 #define FILE_MODE "r"
@@ -43,9 +40,12 @@ TCHAR WinClassName[] = _T(CLASS_NAME);
 FILE *file;
 HDC hdc;
 PAINTSTRUCT ps;
-RECT backRt, cellRt;
-HBRUSH backgroundBrush;
+RECT cellRt;
+HBRUSH backgroundBrush, tableBrush;
 COLORREF backgroundColor = COLOR_BACKGROUND;
+COLORREF tableColor = COLOR_TABLE;
+COLORREF tableNumberColor = COLOR_TABLENUMBER;
+COLORREF tableAccentNumberColor = COLOR_TABLEACCENT;
 int windowWidth, windowHeight;
 HMENU hMenu;
 int rows = 10, columns = 10;
@@ -153,9 +153,19 @@ VOID FindTableParameters(int* cellWidth, int* cellHeight, int* borderWidth, int*
 
 VOID FillTable(int* cellWidth, int* cellHeight, int* borderWidth, int* borderHeight)
 {
+	wchar_t str[4];
 	SelectObject(hdc, hFont);
 	SetBkColor(hdc, backgroundColor);
-	//TextOut(hdc, 10, 10, TEXT, 35);
+	for (int i = 0; i <= rows; i++)
+		for (int j = 0; j <= columns; j++)
+		{
+			if ((i == j) || (i == 0) || (j == 0))
+				SetTextColor(hdc, tableAccentNumberColor);
+			else
+				SetTextColor(hdc, tableNumberColor);
+			_itow_s(table[i][j], str, 10);
+			TextOut(hdc, *borderWidth + *cellWidth * j + 3, *borderHeight + *cellHeight * i + 1, str, _tcsclen(str));
+		}
 }
 
 BOOL CheckUserSize()
@@ -178,6 +188,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message,
 		AddMenu(hWnd);
 		InitializeFont(); 
 		backgroundBrush = CreateSolidBrush(backgroundColor);
+		tableBrush = CreateSolidBrush(tableColor);
 		break;
 	case WM_SIZE:
 		windowWidth = LOWORD(lParam);
@@ -201,6 +212,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message,
 		break;
 	case WM_DESTROY:
 		DeleteObject(backgroundBrush);
+		DeleteObject(tableBrush);
 		DeleteObject(hFont);
 		PostQuitMessage(0);
 		break;
