@@ -18,6 +18,13 @@
 
 #define FILE_TABLE_ROWS 21
 #define FILE_TABLE_COLUMNS 21
+#define FIRST_RUN_ROWS 16
+#define FIRST_RUN_COLUMNS 11
+
+// Константы вычислены с помощью отладчика
+// Используются для изменения размера окна, так как lparam хранит ширину и высоту КЛИЕНТСКОЙ области, а не всего окна целиком
+#define SYSTEM_WINDOW_BORDER_WIDTH 16
+#define SYSTEM_WINDOW_HEADER_HEIGHT 60
 
 #define SCROLL_STEP 3
 
@@ -35,7 +42,7 @@ VOID AddMenu(HWND);
 VOID InitializeFont();
 VOID PaintTable(HWND);
 VOID FindTableParameters();
-VOID AddVerticalScroll(HWND, LPARAM);
+VOID AddVerticalScroll(HWND);
 VOID FillTable();
 BOOL CheckUserSize();
 
@@ -43,7 +50,7 @@ TCHAR WinClassName[] = _T(CLASS_NAME);
 FILE *file;
 HDC hdc;
 PAINTSTRUCT ps;
-RECT cellRt;
+RECT cellRt, rect;
 HBRUSH backgroundBrush, tableBrush;
 COLORREF backgroundColor = COLOR_BACKGROUND;
 COLORREF tableColor = COLOR_TABLE;
@@ -52,8 +59,10 @@ COLORREF tableAccentNumberColor = COLOR_TABLEACCENT;
 int windowWidth, windowHeight;
 int cellWidth, minCellWidth, cellHeight, borderWidth;
 HMENU hMenu;
-int rows = 20, columns = 10;
+int rows = FIRST_RUN_ROWS, columns = FIRST_RUN_COLUMNS;
+int verticalScrollPos, invisibleCells;
 BOOL isRowsNum, isColumnsNum;
+BOOL firstRunWindowSizeFlag = true;
 int table[FILE_TABLE_ROWS][FILE_TABLE_COLUMNS];
 LOGFONT lf;
 TEXTMETRIC tm;
@@ -77,7 +86,7 @@ int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCm
 
 	RegisterClassEx(&wcex);
 
-	hWnd = CreateWindow(WinClassName, _T(WINDOW_NAME), WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT,
+	hWnd = CreateWindow(WinClassName, _T(WINDOW_NAME), WS_OVERLAPPEDWINDOW/* | WS_VSCROLL*/, CW_USEDEFAULT, CW_USEDEFAULT,
 		CW_USEDEFAULT, CW_USEDEFAULT, HWND_DESKTOP, NULL, hInstance, NULL);
 
 	ShowWindow(hWnd, nCmdShow);
@@ -137,39 +146,37 @@ VOID PaintTable(HWND hWnd)
 
 	FindTableParameters();
 	tableBrush = CreateSolidBrush(tableColor);
-
-	for (int i = 0; i <= rows; i++)
-		for (int j = 0; j <= columns; j++) 
+	for (int i = 0; i < rows/* - verticalScrollPos*/; i++)
+		for (int j = 0; j < columns; j++) 
 		{
-			//SetRect(&cellRt, borderWidth + cellWidth * j, borderHeight + cellHeight * i, borderWidth + cellWidth * (j + 1), borderHeight + cellHeight * (i + 1));
 			SetRect(&cellRt, borderWidth + cellWidth * j, cellHeight * i, borderWidth + cellWidth * (j + 1), cellHeight * (i + 1));
 			FrameRect(hdc, &cellRt, tableBrush);
 		}
 	FillTable();
+	if (firstRunWindowSizeFlag) 
+	{
+		SendMessage(hWnd, WM_SIZE, 0, (rows * cellHeight + SYSTEM_WINDOW_HEADER_HEIGHT) << 16 | windowWidth);
+		GetWindowRect(hWnd, &rect);
+		MoveWindow(hWnd, rect.left, rect.top, windowWidth + SYSTEM_WINDOW_BORDER_WIDTH, windowHeight, FALSE);
+		firstRunWindowSizeFlag = false;
+	}
 }
 
 VOID FindTableParameters()
 {
 	SelectObject(hdc, hFont);
 	GetTextMetrics(hdc, &tm);
-	//*cellHeight = (int)ceil(windowHeight / (rows + 1));
 	cellHeight = tm.tmHeight + 4;
 	minCellWidth = (tm.tmAveCharWidth * 3) + 4;
-	cellWidth = (int)ceil(windowWidth / (columns + 1));
-	//borderHeight = (windowHeight - (rows + 1) * cellHeight) / 2;
-	borderWidth = (windowWidth - (columns + 1) * cellWidth) / 2;
+	cellWidth = (int)ceil(windowWidth / columns);
+	borderWidth = (windowWidth - columns * cellWidth) / 2;
 }
 
-VOID AddVerticalScroll(HWND hWnd, LPARAM lParam)
+VOID AddVerticalScroll(HWND hWnd)
 {
-	long style;
-	style = GetWindowLong(hWnd, GWL_STYLE);
-	if (((rows + 1) * cellHeight) > HIWORD(lParam))
-		style |= WS_VSCROLL;
-	else
-		style &= ~WS_VSCROLL;
-	SetWindowLong(hWnd, GWL_STYLE, style);
-	SetWindowPos(hWnd, NULL, 0, 0, 0, 0, SWP_DRAWFRAME | SWP_FRAMECHANGED | SWP_NOZORDER | SWP_NOMOVE | SWP_NOSIZE);
+	/*invisibleCells = (((rows + 1) * cellHeight) >= windowHeight) ? floor(((rows + 1) * cellHeight - windowHeight) / cellHeight) : 0;
+	SetScrollRange(hWnd, SB_VERT, 0, invisibleCells, FALSE);
+	SetScrollPos(hWnd, SB_VERT, verticalScrollPos, TRUE);*/
 }
 
 VOID FillTable()
@@ -177,12 +184,11 @@ VOID FillTable()
 	wchar_t str[4];
 	SelectObject(hdc, hFont);
 	SetBkColor(hdc, backgroundColor);
-	for (int i = 0; i <= rows; i++)
-		for (int j = 0; j <= columns; j++)
+	for (int i = 0; i < rows/* - verticalScrollPos*/; i++)
+		for (int j = 0; j < columns; j++)
 		{
 			SetTextColor(hdc, ((i == j) || (i == 0) || (j == 0)) ? tableAccentNumberColor : tableNumberColor);
-			_itow_s(table[i][j], str, 10);
-			//TextOut(hdc, borderWidth + cellWidth * j + 3, borderHeight + cellHeight * i + 1, str, _tcsclen(str));
+			_itow_s(table[i/* + verticalScrollPos*/][j], str, 10);
 			TextOut(hdc, borderWidth + cellWidth * j + 3, cellHeight * i + 1, str, _tcsclen(str));
 		}
 }
@@ -190,12 +196,11 @@ VOID FillTable()
 BOOL CheckUserSize()
 {
 	if (isRowsNum && isColumnsNum)
-		return ((rows >= 2 && rows <= 20) && (columns >= 2 && columns <= 20)) ? true : false;
+		return (((rows - 1) >= 2 && (rows - 1) <= 20) && ((columns - 1) >= 2 && (columns - 1) <= 20)) ? true : false;
 	else return false;
 }
 
-LRESULT CALLBACK WndProc(HWND hWnd, UINT message,
-	WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	LPMINMAXINFO lpMMI = (LPMINMAXINFO)lParam;
 	switch (message)
@@ -207,19 +212,19 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message,
 		}
 		AddMenu(hWnd);
 		InitializeFont();
-		SelectObject(hdc, hFont);
-		GetTextMetrics(hdc, &tm);
 		backgroundBrush = CreateSolidBrush(backgroundColor);
 		tableBrush = CreateSolidBrush(tableColor);
 		break;
 	case WM_SIZE:
 		windowWidth = LOWORD(lParam);
 		windowHeight = HIWORD(lParam);
-		AddVerticalScroll(hWnd, lParam);
-		InvalidateRect(hWnd, NULL, TRUE);
+		AddVerticalScroll(hWnd);
 		break;
 	case WM_GETMINMAXINFO:
 		lpMMI->ptMinTrackSize.x = FILE_TABLE_COLUMNS * (minCellWidth + 5);
+		lpMMI->ptMinTrackSize.y = cellHeight + 60;
+		if (cellHeight != 0)
+			lpMMI->ptMaxTrackSize.y = rows * cellHeight + 60;
 		break;
 	case WM_COMMAND:
 		switch (wParam) {
@@ -236,18 +241,27 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message,
 		PaintTable(hWnd);
 		EndPaint(hWnd, &ps);
 		break;
-	case WM_VSCROLL:
-		switch (wParam) {
-			case SB_LINEUP:
-			case SB_PAGEUP:
-				break;
-			case SB_LINEDOWN:
-			case SB_PAGEDOWN:
-				break;
-			case SB_THUMBTRACK:
-				break;
-		}
-		break;
+	//case WM_VSCROLL:
+	//	switch (wParam) {
+	//		case SB_LINEUP:
+	//		case SB_PAGEUP:
+	//			verticalScrollPos--;
+	//			break;
+	//		case SB_LINEDOWN:
+	//		case SB_PAGEDOWN:
+	//			verticalScrollPos++;
+	//			break;
+	//		case SB_THUMBTRACK:
+	//			verticalScrollPos = HIWORD(wParam);
+	//			break;
+	//	}
+	//		//verticalScrollPos = max(0, min(verticalScrollPos, invisibleCells));
+	//		if (verticalScrollPos != GetScrollPos(hWnd, SB_VERT))
+	//		{
+	//			SetScrollPos(hWnd, SB_VERT, verticalScrollPos, TRUE);
+	//			InvalidateRect(hWnd, NULL, TRUE);
+	//		}
+	//	break;
 	case WM_DESTROY:
 		DeleteObject(backgroundBrush);
 		DeleteObject(tableBrush);
@@ -262,23 +276,27 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message,
 
 INT_PTR CALLBACK DlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-	static HWND hEditRows, hEditColumns, hErrorMessage;
+	static HWND hErrorMessage;
 	bool flag = true;
 	switch (uMsg)
 	{
 	case WM_INITDIALOG:
 		hErrorMessage = GetDlgItem(hDlg, IDC_ERROR);
-		SetDlgItemInt(hDlg, IDC_EDITROWS, 10, FALSE);
-		SetDlgItemInt(hDlg, IDC_EDITCOLUMNS, 10, FALSE);
+		SetDlgItemInt(hDlg, IDC_EDITROWS, rows - 1, FALSE);
+		SetDlgItemInt(hDlg, IDC_EDITCOLUMNS, columns - 1, FALSE);
+		// От числа строк и столбцов необходимо отнять единицу, так как эти переменные содержат число строк/столбцов + шапка таблицы
 		break;
 	case WM_COMMAND:
 		switch (LOWORD(wParam))
 		{
 		case IDOK:
-			rows = GetDlgItemInt(hDlg, IDC_EDITROWS, &isRowsNum, FALSE);
-			columns = GetDlgItemInt(hDlg, IDC_EDITCOLUMNS, &isColumnsNum, FALSE);
-			if (CheckUserSize())
+			rows = GetDlgItemInt(hDlg, IDC_EDITROWS, &isRowsNum, FALSE) + 1;
+			columns = GetDlgItemInt(hDlg, IDC_EDITCOLUMNS, &isColumnsNum, FALSE) + 1;
+			if (CheckUserSize()) 
 			{
+				SendMessage(GetParent(hDlg), WM_SIZE, 0, (rows * cellHeight + SYSTEM_WINDOW_HEADER_HEIGHT) << 16 | windowWidth);
+				GetWindowRect(GetParent(hDlg), &rect);
+				MoveWindow(GetParent(hDlg), rect.left, rect.top, windowWidth + SYSTEM_WINDOW_BORDER_WIDTH, windowHeight, FALSE);
 				InvalidateRect(GetParent(hDlg), NULL, TRUE);
 				EndDialog(hDlg, 0);
 			}
@@ -287,7 +305,6 @@ INT_PTR CALLBACK DlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			break;
 		case IDCANCEL:
 			EndDialog(hDlg, 0);
-			//ExitProcess(0);
 			break;
 		}
 		break;
