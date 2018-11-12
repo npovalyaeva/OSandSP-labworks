@@ -26,7 +26,7 @@
 #define SYSTEM_WINDOW_BORDER_WIDTH 16
 #define SYSTEM_WINDOW_HEADER_HEIGHT 60
 
-#define SCROLL_STEP 3
+#define SCROLL_STEP 7
 
 #define COLOR_BACKGROUND RGB(241, 242, 240);
 #define COLOR_TABLE RGB(191, 186, 190);
@@ -60,7 +60,7 @@ int windowWidth, windowHeight;
 int cellWidth, minCellWidth, cellHeight, borderWidth;
 HMENU hMenu;
 int rows = FIRST_RUN_ROWS, columns = FIRST_RUN_COLUMNS;
-int verticalScrollPos, invisibleCells;
+int verticalScrollPos, invisiblePixels, ScrollCount;
 BOOL isRowsNum, isColumnsNum;
 BOOL firstRunWindowSizeFlag = true;
 int table[FILE_TABLE_ROWS][FILE_TABLE_COLUMNS];
@@ -72,7 +72,7 @@ int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCm
 {
 	WNDCLASSEX wcex; HWND hWnd; MSG msg;
 	wcex.cbSize = sizeof(WNDCLASSEX);
-	wcex.style = CS_HREDRAW;
+	wcex.style = CS_VREDRAW | CS_HREDRAW;
 	wcex.lpfnWndProc = WndProc;
 	wcex.cbClsExtra = 0;
 	wcex.cbWndExtra = 0;
@@ -122,44 +122,21 @@ VOID AddMenu(HWND hWnd)
 
 VOID InitializeFont()
 {
-	lf.lfHeight = 20; // Высота символьной ячейки шрифта в логических единицах
-	lf.lfWidth = 0; // Ширина символьной ячейки шрифта в логических единицах
-	lf.lfEscapement = 0; // Угол между вектором наклона и осью X устройства в десятых долях градусов
-	lf.lfOrientation = 0; // Угол между основной линией каждого символа и осью X устройства в десятых долях градусов
-	lf.lfWeight = FW_NORMAL; // Толщина шрифта в диапазоне 0..1000
-	lf.lfItalic = 0; // Курсивный шрифт
-	lf.lfUnderline = 0; // Подчеркнутый шрифт
-	lf.lfStrikeOut = 0; // Зачеркнутый шрифт
-	lf.lfCharSet = ANSI_CHARSET; // Набор символов
-	lf.lfOutPrecision = OUT_DEFAULT_PRECIS; // Точность вывода
-	lf.lfClipPrecision = CLIP_DEFAULT_PRECIS; // Точность отсечения
-	lf.lfQuality = PROOF_QUALITY; // Качество вывода
-	lf.lfPitchAndFamily = VARIABLE_PITCH | FF_MODERN; // Ширина символов и семейство шрифтов
-	wcscpy_s(lf.lfFaceName, FONT_NAME); // Название гарнитуры шрифта
+	lf.lfHeight = 20;
+	lf.lfWidth = 0;
+	lf.lfEscapement = 0;
+	lf.lfOrientation = 0;
+	lf.lfWeight = FW_NORMAL;
+	lf.lfItalic = 0;
+	lf.lfUnderline = 0;
+	lf.lfStrikeOut = 0;
+	lf.lfCharSet = ANSI_CHARSET;
+	lf.lfOutPrecision = OUT_DEFAULT_PRECIS;
+	lf.lfClipPrecision = CLIP_DEFAULT_PRECIS;
+	lf.lfQuality = PROOF_QUALITY;
+	lf.lfPitchAndFamily = VARIABLE_PITCH | FF_MODERN;
+	wcscpy_s(lf.lfFaceName, FONT_NAME);
 	hFont = CreateFontIndirect(&lf);
-}
-
-VOID PaintTable(HWND hWnd)
-{
-	HBRUSH tableBrush;
-	COLORREF tableColor = COLOR_TABLE;
-
-	FindTableParameters();
-	tableBrush = CreateSolidBrush(tableColor);
-	for (int i = 0; i < rows/* - verticalScrollPos*/; i++)
-		for (int j = 0; j < columns; j++) 
-		{
-			SetRect(&cellRt, borderWidth + cellWidth * j, cellHeight * i, borderWidth + cellWidth * (j + 1), cellHeight * (i + 1));
-			FrameRect(hdc, &cellRt, tableBrush);
-		}
-	FillTable();
-	if (firstRunWindowSizeFlag) 
-	{
-		SendMessage(hWnd, WM_SIZE, 0, (rows * cellHeight + SYSTEM_WINDOW_HEADER_HEIGHT) << 16 | windowWidth);
-		GetWindowRect(hWnd, &rect);
-		MoveWindow(hWnd, rect.left, rect.top, windowWidth + SYSTEM_WINDOW_BORDER_WIDTH, windowHeight, FALSE);
-		firstRunWindowSizeFlag = false;
-	}
 }
 
 VOID FindTableParameters()
@@ -174,9 +151,34 @@ VOID FindTableParameters()
 
 VOID AddVerticalScroll(HWND hWnd)
 {
-	/*invisibleCells = (((rows + 1) * cellHeight) >= windowHeight) ? floor(((rows + 1) * cellHeight - windowHeight) / cellHeight) : 0;
-	SetScrollRange(hWnd, SB_VERT, 0, invisibleCells, FALSE);
-	SetScrollPos(hWnd, SB_VERT, verticalScrollPos, TRUE);*/
+	invisiblePixels = ((rows * cellHeight) > windowHeight) ? rows * cellHeight - windowHeight : 0;
+	ScrollCount = invisiblePixels % SCROLL_STEP != 0 ? (int)(invisiblePixels / SCROLL_STEP + 1) : (int)(invisiblePixels / SCROLL_STEP);
+	SetScrollRange(hWnd, SB_VERT, 0, ScrollCount, FALSE);
+	SetScrollPos(hWnd, SB_VERT, verticalScrollPos, TRUE);
+}
+
+VOID PaintTable(HWND hWnd)
+{
+	HBRUSH tableBrush;
+	COLORREF tableColor = COLOR_TABLE;
+
+	FindTableParameters();
+	tableBrush = CreateSolidBrush(tableColor);
+	for (int i = 0; i < rows; i++)
+		for (int j = 0; j < columns; j++) 
+		{
+			SetRect(&cellRt, borderWidth + cellWidth * j, cellHeight * i - (verticalScrollPos == ScrollCount  ? invisiblePixels : verticalScrollPos * SCROLL_STEP), 
+							 borderWidth + cellWidth * (j + 1), cellHeight * (i + 1) - (verticalScrollPos == ScrollCount ? invisiblePixels : verticalScrollPos * SCROLL_STEP));
+			FrameRect(hdc, &cellRt, tableBrush);
+		}
+	FillTable();
+	if (firstRunWindowSizeFlag) 
+	{
+		SendMessage(hWnd, WM_SIZE, 0, (rows * cellHeight + SYSTEM_WINDOW_HEADER_HEIGHT) << 16 | windowWidth); // Передать параметры размера окна при изменении размера таблицы
+		GetWindowRect(hWnd, &rect);
+		MoveWindow(hWnd, rect.left, rect.top, windowWidth + SYSTEM_WINDOW_BORDER_WIDTH, windowHeight, FALSE);
+		firstRunWindowSizeFlag = false;
+	}
 }
 
 VOID FillTable()
@@ -184,12 +186,12 @@ VOID FillTable()
 	wchar_t str[4];
 	SelectObject(hdc, hFont);
 	SetBkColor(hdc, backgroundColor);
-	for (int i = 0; i < rows/* - verticalScrollPos*/; i++)
+	for (int i = 0; i < rows; i++)
 		for (int j = 0; j < columns; j++)
 		{
 			SetTextColor(hdc, ((i == j) || (i == 0) || (j == 0)) ? tableAccentNumberColor : tableNumberColor);
-			_itow_s(table[i/* + verticalScrollPos*/][j], str, 10);
-			TextOut(hdc, borderWidth + cellWidth * j + 3, cellHeight * i + 1, str, _tcsclen(str));
+			_itow_s(table[i][j], str, 10);
+			TextOut(hdc, borderWidth + cellWidth * j + 3, cellHeight * i + 1 - (verticalScrollPos == ScrollCount ? invisiblePixels : verticalScrollPos * SCROLL_STEP), str, _tcsclen(str));
 		}
 }
 
@@ -216,6 +218,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		tableBrush = CreateSolidBrush(tableColor);
 		break;
 	case WM_SIZE:
+		if (windowWidth == LOWORD(lParam))
+			verticalScrollPos = 0;
 		windowWidth = LOWORD(lParam);
 		windowHeight = HIWORD(lParam);
 		AddVerticalScroll(hWnd);
@@ -237,31 +241,42 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		}
 		break;
 	case WM_PAINT:
-		hdc = BeginPaint(hWnd, &ps);
-		PaintTable(hWnd);
-		EndPaint(hWnd, &ps);
+			hdc = BeginPaint(hWnd, &ps);
+			PaintTable(hWnd);
+			EndPaint(hWnd, &ps);
 		break;
-	//case WM_VSCROLL:
-	//	switch (wParam) {
-	//		case SB_LINEUP:
-	//		case SB_PAGEUP:
-	//			verticalScrollPos--;
-	//			break;
-	//		case SB_LINEDOWN:
-	//		case SB_PAGEDOWN:
-	//			verticalScrollPos++;
-	//			break;
-	//		case SB_THUMBTRACK:
-	//			verticalScrollPos = HIWORD(wParam);
-	//			break;
-	//	}
-	//		//verticalScrollPos = max(0, min(verticalScrollPos, invisibleCells));
-	//		if (verticalScrollPos != GetScrollPos(hWnd, SB_VERT))
-	//		{
-	//			SetScrollPos(hWnd, SB_VERT, verticalScrollPos, TRUE);
-	//			InvalidateRect(hWnd, NULL, TRUE);
-	//		}
-	//	break;
+	case WM_KEYDOWN:
+		switch (wParam)
+		{
+			case VK_UP:
+				verticalScrollPos--;
+				break;
+			case VK_DOWN:
+				verticalScrollPos++;
+				break;
+		}
+		//break;
+	case WM_VSCROLL:
+		switch (wParam) 
+		{
+			case SB_LINEUP:
+			case SB_PAGEUP:
+				verticalScrollPos--;
+				break;
+			case SB_LINEDOWN:
+			case SB_PAGEDOWN:
+				verticalScrollPos++;
+				break;
+			case SB_THUMBTRACK:
+				verticalScrollPos = HIWORD(wParam);
+				break;
+		}
+		if (verticalScrollPos != GetScrollPos(hWnd, SB_VERT) && (verticalScrollPos >= 0 && verticalScrollPos <= ScrollCount))
+		{
+			SetScrollPos(hWnd, SB_VERT, verticalScrollPos, TRUE);
+			InvalidateRect(hWnd, NULL, TRUE);
+		}
+		break;
 	case WM_DESTROY:
 		DeleteObject(backgroundBrush);
 		DeleteObject(tableBrush);
